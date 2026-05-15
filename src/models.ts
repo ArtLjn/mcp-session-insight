@@ -34,6 +34,7 @@ export interface Session {
   entrypoint: string;
   messages: SessionMessage[];
   jsonlPath: string;
+  gitBranch?: string;
   // Quick-scan cached fields
   _quickUserCount?: number;
   _quickAssistantCount?: number;
