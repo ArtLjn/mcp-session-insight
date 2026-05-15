@@ -1,0 +1,4 @@
+{"type":"user","timestamp":"2024-01-15T10:00:00Z","sessionId":"abc123","cwd":"/Users/ljn/proj","message":{"content":"hello world"}}
+{"type":"assistant","timestamp":"2024-01-15T10:01:00Z","sessionId":"abc123","message":{"content":[{"type":"text","text":"Hi there"}]}}
+{"type":"user","timestamp":"2024-01-15T10:02:00Z","sessionId":"abc123","message":{"content":"fix the bug"}}
+{"type":"assistant","timestamp":"2024-01-15T10:03:00Z","sessionId":"abc123","message":{"content":[{"type":"tool_use","name":"Read","input":{"file_path":"/Users/ljn/proj/src/main.ts"}},{"type":"text","text":"I see the issue"}]}}
