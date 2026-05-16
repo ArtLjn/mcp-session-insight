@@ -25,9 +25,23 @@ import { extractWorkSummary } from './extractor.js';
 import { generateHandoffContext, similarity, cleanUserText } from './context.js';
 import { shortPath } from './utils.js';
 
+/** Cache for listAllSessions to avoid repeated disk scans within a single request */
+let _sessionCache: Session[] | null = null;
+let _sessionCacheTime = 0;
+const CACHE_TTL_MS = 5000;
+
+function getCachedSessions(): Session[] {
+  const now = Date.now();
+  if (!_sessionCache || now - _sessionCacheTime > CACHE_TTL_MS) {
+    _sessionCache = listAllSessions();
+    _sessionCacheTime = now;
+  }
+  return _sessionCache;
+}
+
 /** Resolve session by exact match first, then prefix match */
 export function resolveSession(sessionId: string): Session | null {
-  const sessions = listAllSessions();
+  const sessions = getCachedSessions();
   for (const s of sessions) {
     if (s.sessionId === sessionId) {
       s.messages = loadSessionMessages(s);
@@ -236,7 +250,8 @@ export function formatConversation(
     const ts = m.timestamp.slice(0, 16).replace('T', ' ');
     lines.push(`## ${role} — ${ts}`);
     lines.push('');
-    lines.push(m.text || '*(empty)*');
+    const text = m.text || '';
+    lines.push(text.length > 500 ? text.slice(0, 500) + '...' : text || '*(empty)*');
     lines.push('');
   }
 
@@ -272,7 +287,7 @@ export function createServer(): Server {
         },
         {
           name: 'show_session',
-          description: 'Show detailed info for a session',
+          description: 'Show metadata for a session (project, time, message count). Use this for a quick overview. For full content, use get_session_conversation or get_session_summary.',
           inputSchema: {
             type: 'object',
             properties: {
@@ -294,7 +309,7 @@ export function createServer(): Server {
         },
         {
           name: 'get_session_summary',
-          description: 'Get handoff context summary for a session',
+          description: 'Get a comprehensive handoff context for a session (includes file changes, requests, todos, errors, decisions). This is the SINGLE tool to call when the user wants to understand what happened in a session. Do NOT call other tools after this.',
           inputSchema: {
             type: 'object',
             properties: {
@@ -305,7 +320,7 @@ export function createServer(): Server {
         },
         {
           name: 'get_session_changes',
-          description: 'Get file changes for a session',
+          description: 'Get file changes (created/modified) for a session. Only call this if the user explicitly asks for file changes.',
           inputSchema: {
             type: 'object',
             properties: {
@@ -316,7 +331,7 @@ export function createServer(): Server {
         },
         {
           name: 'get_session_requests',
-          description: 'Get deduplicated user requests for a session',
+          description: 'Get deduplicated user requests for a session. Only call this if the user explicitly asks for user requests.',
           inputSchema: {
             type: 'object',
             properties: {
@@ -327,7 +342,7 @@ export function createServer(): Server {
         },
         {
           name: 'get_session_todos',
-          description: 'Get todo snapshots for a session',
+          description: 'Get todo snapshots for a session. Only call this if the user explicitly asks for todo progress.',
           inputSchema: {
             type: 'object',
             properties: {
@@ -338,7 +353,7 @@ export function createServer(): Server {
         },
         {
           name: 'get_session_errors',
-          description: 'Get errors/issues for a session',
+          description: 'Get errors/issues for a session. Only call this if the user explicitly asks for errors.',
           inputSchema: {
             type: 'object',
             properties: {
@@ -349,7 +364,7 @@ export function createServer(): Server {
         },
         {
           name: 'get_session_decisions',
-          description: 'Get decisions for a session',
+          description: 'Get decisions for a session. Only call this if the user explicitly asks for decisions.',
           inputSchema: {
             type: 'object',
             properties: {
@@ -403,6 +418,7 @@ export function createServer(): Server {
         const sessionId = String(args.session_id || '');
         const session = resolveSession(sessionId);
         if (!session) return notFound(sessionId);
+        // Only load messages if explicitly needed; formatSessionDetail uses metadata only
         return { content: [{ type: 'text', text: formatSessionDetail(session) }] };
       }
 
