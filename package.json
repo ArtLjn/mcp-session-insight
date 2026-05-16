@@ -1,6 +1,6 @@
 {
   "name": "@morningljn/mcp-session-insight",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "MCP Server for Claude Code Session Insight — read, analyze, and handoff sessions",
   "type": "module",
   "main": "dist/index.js",
@@ -16,8 +16,12 @@
     "prepublishOnly": "npm run build"
   },
   "keywords": [
-    "mcp", "mcp-server", "claude-code", "session-manager",
-    "ai-assistant", "developer-tools"
+    "mcp",
+    "mcp-server",
+    "claude-code",
+    "session-manager",
+    "ai-assistant",
+    "developer-tools"
   ],
   "author": "",
   "license": "MIT",
