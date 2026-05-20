@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createServer, resolveSession, dedupRequests, formatSessionList } from '../src/server.js';
+import { createServer, resolveSession, formatSessionList, getEnrichedSummary } from '../src/server.js';
 import type { Session } from '../src/models.js';
 
 describe('server', () => {
@@ -13,17 +13,6 @@ describe('server', () => {
   it('resolveSession returns null for unknown session', () => {
     const result = resolveSession('nonexistent-session-id-xyz');
     expect(result).toBeNull();
-  });
-
-  it('dedupRequests removes similar items', () => {
-    const requests = [
-      'fix the login bug please',
-      'fix the login bug please now',
-      'add dark mode',
-      'add dark mode support',
-    ];
-    const result = dedupRequests(requests);
-    expect(result.length).toBeLessThan(requests.length);
   });
 
   it('formatSessionList produces markdown table', () => {

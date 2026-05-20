@@ -19,10 +19,10 @@ import type {
   GetPromptRequest,
   GetPromptResult,
 } from '@modelcontextprotocol/sdk/types.js';
-import type { Session, WorkSummary } from './models.js';
+import type { Session, EnrichedSummary } from './models.js';
 import { listAllSessions, getSession, searchSessions, loadSessionMessages } from './store.js';
-import { extractWorkSummary } from './extractor.js';
-import { generateHandoffContext, similarity, cleanUserText } from './context.js';
+import { extractEnrichedSummary, extractWorkSummary } from './extractor.js';
+import { cleanUserText } from './context.js';
 import { shortPath } from './utils.js';
 
 /** Cache for listAllSessions to avoid repeated disk scans within a single request */
@@ -58,20 +58,13 @@ export function resolveSession(sessionId: string): Session | null {
 }
 
 /** Wrap extractWorkSummary with session data */
-export function getWorkSummary(session: Session): WorkSummary {
+export function getWorkSummary(session: Session) {
   return extractWorkSummary(session.jsonlPath);
 }
 
-/** Simple similarity-based dedup for requests */
-export function dedupRequests(requests: string[]): string[] {
-  const result: string[] = [];
-  for (const req of requests) {
-    const cleaned = cleanUserText(req);
-    if (!cleaned) continue;
-    const isDup = result.some(r => similarity(r, cleaned) >= 0.85);
-    if (!isDup) result.push(cleaned);
-  }
-  return result;
+/** Get enriched summary for a session */
+export function getEnrichedSummary(session: Session): EnrichedSummary {
+  return extractEnrichedSummary(session.jsonlPath, session.cwd);
 }
 
 /** Format session list as markdown */
@@ -129,7 +122,7 @@ export function formatSearchResults(sessions: Session[], keyword: string): strin
 }
 
 /** Format file changes as markdown */
-export function formatChanges(work: WorkSummary, cwd: string): string {
+export function formatChanges(work: { filesCreated: string[]; filesModified: Record<string, number> }, cwd: string): string {
   const lines: string[] = [];
   lines.push('# File Changes');
   lines.push('');
@@ -160,12 +153,11 @@ export function formatRequests(requests: string[]): string {
   const lines: string[] = [];
   lines.push('# User Requests');
   lines.push('');
-  const deduped = dedupRequests(requests);
-  if (deduped.length === 0) {
+  if (requests.length === 0) {
     lines.push('No user requests found.');
     return lines.join('\n');
   }
-  deduped.forEach((req, i) => {
+  requests.forEach((req: string, i: number) => {
     lines.push(`${i + 1}. ${req}`);
   });
   return lines.join('\n');
@@ -309,7 +301,7 @@ export function createServer(): Server {
         },
         {
           name: 'get_session_summary',
-          description: 'Get a comprehensive handoff context for a session (includes file changes, requests, todos, errors, decisions). This is the SINGLE tool to call when the user wants to understand what happened in a session. Do NOT call other tools after this.',
+          description: 'Get a comprehensive summary for a session. Returns structured JSON data (EnrichedSummary). Based on this data, synthesize a concise Chinese summary for the user covering: what was done, key files changed, errors encountered, and decisions made. This is the SINGLE tool to call when the user wants to understand what happened in a session. Do NOT call other tools after this.',
           inputSchema: {
             type: 'object',
             properties: {
@@ -432,9 +424,8 @@ export function createServer(): Server {
         const sessionId = String(args.session_id || '');
         const session = resolveSession(sessionId);
         if (!session) return notFound(sessionId);
-        const work = getWorkSummary(session);
-        const ctx = generateHandoffContext(session, work);
-        return { content: [{ type: 'text', text: ctx }] };
+        const enriched = getEnrichedSummary(session);
+        return { content: [{ type: 'text', text: JSON.stringify(enriched, null, 2) }] };
       }
 
       case 'get_session_changes': {
@@ -583,14 +574,16 @@ export function createServer(): Server {
           ],
         };
       }
-      const work = getWorkSummary(session);
-      const ctx = generateHandoffContext(session, work);
+      const enriched = getEnrichedSummary(session);
       return {
         description: 'Session handoff context',
         messages: [
           {
             role: 'assistant',
-            content: { type: 'text', text: ctx },
+            content: {
+              type: 'text',
+              text: `Based on this session data, generate a comprehensive handoff summary in Chinese:\n\n${JSON.stringify(enriched, null, 2)}`,
+            },
           },
         ],
       };
