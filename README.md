@@ -44,7 +44,7 @@ Or manually add to `~/.claude/mcp.json`:
 | `list_sessions` | List all sessions with optional project filter and limit |
 | `show_session` | Show session details (supports prefix matching) |
 | `search_sessions` | Search sessions by keyword in content or ID |
-| `get_session_summary` | Generate handoff context for session continuation |
+| `get_session_summary` | Returns structured EnrichedSummary JSON for LLM synthesis |
 | `get_session_changes` | Get file changes (created / modified / read) |
 | `get_session_requests` | Get deduplicated user requests |
 | `get_session_todos` | Get todo progress snapshots |
@@ -64,6 +64,15 @@ Or manually add to `~/.claude/mcp.json`:
 ## How It Works
 
 This MCP Server reads Claude Code's session JSONL files from `~/.claude/projects/`, extracts structured insights (file changes, user requests, decisions, errors, todos), and exposes them via the Model Context Protocol.
+
+**EnrichedSummary (v0.3.0+):** Instead of returning a pre-formatted Markdown template, `get_session_summary` returns structured JSON data with semantic classification, contextualized errors, and directory-grouped file changes. The calling LLM synthesizes a concise summary from this data — zero extra API cost.
+
+**Key features:**
+- Bash command semantic classification (build/test/deploy/debug/network/run/git/explore)
+- Error context binding via sliding window (associates errors with triggering tools)
+- Jaccard trigram deduplication for user requests (93% accuracy at 0.4 threshold)
+- File changes grouped by directory
+- Session duration and message density metrics
 
 **Stateless design:** No database, no persistence. Reads JSONL directly on each request.
 
@@ -122,7 +131,7 @@ claude mcp add session-insight -- npx @morningljn/mcp-session-insight
 | `list_sessions` | 列出所有会话，支持按项目过滤和分页 |
 | `show_session` | 查看会话详情（支持前缀匹配） |
 | `search_sessions` | 按关键字搜索会话 |
-| `get_session_summary` | 生成交接上下文摘要 |
+| `get_session_summary` | 返回结构化 EnrichedSummary JSON，由 LLM 合成摘要 |
 | `get_session_changes` | 获取文件变更（新建/修改/读取） |
 | `get_session_requests` | 获取去重后的用户请求 |
 | `get_session_todos` | 获取任务进度快照 |
@@ -133,6 +142,15 @@ claude mcp add session-insight -- npx @morningljn/mcp-session-insight
 ## 工作原理
 
 本 MCP Server 直接读取 Claude Code 存储在 `~/.claude/projects/` 下的 JSONL 文件，提取结构化洞察信息（文件变更、用户请求、关键决策、错误记录、任务进度），通过 MCP 协议暴露给 AI 客户端。
+
+**EnrichedSummary (v0.3.0+):** `get_session_summary` 不再返回预排版的 Markdown 模板，而是返回结构化 JSON 数据，包含语义分类、上下文关联的错误、按目录分组的文件变更。调用方 LLM 基于这些数据合成简洁摘要 —— 零额外 API 成本。
+
+**核心特性：**
+- Bash 命令语义分类（build/test/deploy/debug/network/run/git/explore）
+- 滑动窗口 error 上下文绑定（将错误与触发工具关联）
+- Jaccard trigram 用户请求去重（阈值 0.4，准确率 93%）
+- 文件变更按目录分组
+- Session 时长和消息密度统计
 
 **无状态设计：** 不引入数据库，不持久化，每次请求直接读取 JSONL 文件。
 

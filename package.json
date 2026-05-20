@@ -1,7 +1,7 @@
 {
   "name": "@morningljn/mcp-session-insight",
-  "version": "0.2.1",
-  "description": "MCP Server for Claude Code Session Insight — read, analyze, and handoff sessions",
+  "version": "0.3.0",
+  "description": "MCP Server for Claude Code Session Insight — structured data extraction with LLM synthesis guidance",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -19,9 +19,15 @@
     "mcp",
     "mcp-server",
     "claude-code",
+    "session-insight",
     "session-manager",
     "ai-assistant",
-    "developer-tools"
+    "developer-tools",
+    "enriched-summary",
+    "session-handoff",
+    "jsonl-parser",
+    "jaccard-similarity",
+    "bash-classification"
   ],
   "author": "",
   "license": "MIT",
