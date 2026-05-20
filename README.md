@@ -51,6 +51,7 @@ Or manually add to `~/.claude/mcp.json`:
 | `get_session_errors` | Get errors and issues encountered |
 | `get_session_decisions` | Get key decisions from thinking blocks |
 | `get_session_conversation` | Get conversation history with role filter |
+| `get_git_logs` | Collect git commit logs across projects (supports date range, project filter, author filter) |
 
 ## Resources
 
@@ -68,6 +69,7 @@ This MCP Server reads Claude Code's session JSONL files from `~/.claude/projects
 **EnrichedSummary (v0.3.0+):** Instead of returning a pre-formatted Markdown template, `get_session_summary` returns structured JSON data with semantic classification, contextualized errors, and directory-grouped file changes. The calling LLM synthesizes a concise summary from this data — zero extra API cost.
 
 **Key features:**
+- Cross-project git log collection with date range, project, and author filters
 - Bash command semantic classification (build/test/deploy/debug/network/run/git/explore)
 - Error context binding via sliding window (associates errors with triggering tools)
 - Jaccard trigram deduplication for user requests (93% accuracy at 0.4 threshold)
@@ -138,6 +140,7 @@ claude mcp add session-insight -- npx @morningljn/mcp-session-insight
 | `get_session_errors` | 获取错误和问题记录 |
 | `get_session_decisions` | 获取关键决策（从 thinking 提取） |
 | `get_session_conversation` | 获取对话记录（支持角色过滤） |
+| `get_git_logs` | 跨项目收集 git commit 记录（支持日期范围、项目过滤、作者过滤） |
 
 ## 工作原理
 
@@ -146,6 +149,7 @@ claude mcp add session-insight -- npx @morningljn/mcp-session-insight
 **EnrichedSummary (v0.3.0+):** `get_session_summary` 不再返回预排版的 Markdown 模板，而是返回结构化 JSON 数据，包含语义分类、上下文关联的错误、按目录分组的文件变更。调用方 LLM 基于这些数据合成简洁摘要 —— 零额外 API 成本。
 
 **核心特性：**
+- 跨项目 git log 收集（支持日期范围、项目过滤、作者过滤）
 - Bash 命令语义分类（build/test/deploy/debug/network/run/git/explore）
 - 滑动窗口 error 上下文绑定（将错误与触发工具关联）
 - Jaccard trigram 用户请求去重（阈值 0.4，准确率 93%）

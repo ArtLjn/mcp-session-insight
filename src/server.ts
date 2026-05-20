@@ -24,6 +24,7 @@ import { listAllSessions, getSession, searchSessions, loadSessionMessages } from
 import { extractEnrichedSummary, extractWorkSummary } from './extractor.js';
 import { cleanUserText } from './context.js';
 import { shortPath } from './utils.js';
+import { collectGitLogs } from './git.js';
 
 /** Cache for listAllSessions to avoid repeated disk scans within a single request */
 let _sessionCache: Session[] | null = null;
@@ -383,6 +384,19 @@ export function createServer(): Server {
             required: ['session_id'],
           },
         },
+        {
+          name: 'get_git_logs',
+          description: 'Collect git commit logs across projects. Returns structured JSON grouped by project. Only call this if the user explicitly asks for git logs or commit history.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              since: { type: 'string', description: 'Start date (YYYY-MM-DD or "yesterday"), default: today' },
+              until: { type: 'string', description: 'End date (YYYY-MM-DD), default: tomorrow (inclusive)' },
+              project: { type: 'string', description: 'Project path filter (partial match, e.g. "mcp-session")' },
+              author: { type: 'string', description: 'Git author name filter' },
+            },
+          },
+        },
       ],
     };
   });
@@ -475,6 +489,15 @@ export function createServer(): Server {
         const role = String(args.role || 'all') as 'user' | 'assistant' | 'all';
         const limit = Number(args.limit || 50);
         return { content: [{ type: 'text', text: formatConversation(session, role, limit) }] };
+      }
+
+      case 'get_git_logs': {
+        const since = args.since ? String(args.since) : undefined;
+        const until = args.until ? String(args.until) : undefined;
+        const project = args.project ? String(args.project) : undefined;
+        const author = args.author ? String(args.author) : undefined;
+        const logs = collectGitLogs({ since, until, project, author });
+        return { content: [{ type: 'text', text: JSON.stringify(logs, null, 2) }] };
       }
 
       default:

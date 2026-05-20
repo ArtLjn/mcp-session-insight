@@ -1,7 +1,7 @@
 {
   "name": "@morningljn/mcp-session-insight",
-  "version": "0.3.0",
-  "description": "MCP Server for Claude Code Session Insight — structured data extraction with LLM synthesis guidance",
+  "version": "0.4.0",
+  "description": "MCP Server for Claude Code Session Insight — structured data extraction, git log collection, and LLM synthesis guidance",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -27,12 +27,15 @@
     "session-handoff",
     "jsonl-parser",
     "jaccard-similarity",
-    "bash-classification"
+    "bash-classification",
+    "git-log-collector",
+    "cross-project-analytics"
   ],
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.9.0"
+    "@modelcontextprotocol/sdk": "^1.9.0",
+    "@morningljn/mcp-session-insight": "^0.3.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
