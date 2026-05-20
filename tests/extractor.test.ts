@@ -4,6 +4,7 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import {
   extractWorkSummary,
+  classifyBashCategory,
   isNoise,
   isErrorOrIssue,
   classifyBashCommand,
@@ -269,6 +270,64 @@ describe('isErrorOrIssue', () => {
   it('returns false for normal text', () => {
     expect(isErrorOrIssue('hello world')).toBe(false);
     expect(isErrorOrIssue('success')).toBe(false);
+  });
+});
+
+describe('classifyBashCategory', () => {
+  it('classifies test commands', () => {
+    expect(classifyBashCategory('npm test')).toBe('test');
+    expect(classifyBashCategory('vitest run')).toBe('test');
+    expect(classifyBashCategory('pytest tests/')).toBe('test');
+    expect(classifyBashCategory('jest --coverage')).toBe('test');
+    expect(classifyBashCategory('go test ./...')).toBe('test');
+  });
+
+  it('classifies build commands', () => {
+    expect(classifyBashCategory('npm run build')).toBe('build');
+    expect(classifyBashCategory('tsc --noEmit')).toBe('build');
+    expect(classifyBashCategory('webpack --config webpack.config.js')).toBe('build');
+    expect(classifyBashCategory('rollup -c')).toBe('build');
+    expect(classifyBashCategory('esbuild src/index.ts --bundle')).toBe('build');
+  });
+
+  it('classifies git commands', () => {
+    expect(classifyBashCategory('git commit -m "x"')).toBe('git');
+    expect(classifyBashCategory('git push origin main')).toBe('git');
+    expect(classifyBashCategory('git status')).toBe('git');
+  });
+
+  it('classifies deploy commands', () => {
+    expect(classifyBashCategory('docker compose up')).toBe('deploy');
+    expect(classifyBashCategory('kubectl apply -f pod.yaml')).toBe('deploy');
+    expect(classifyBashCategory('helm install my-chart')).toBe('deploy');
+  });
+
+  it('classifies network commands', () => {
+    expect(classifyBashCategory('curl http://localhost:3000')).toBe('network');
+    expect(classifyBashCategory('wget https://example.com')).toBe('network');
+    expect(classifyBashCategory('ping google.com')).toBe('network');
+  });
+
+  it('classifies debug commands', () => {
+    expect(classifyBashCategory('npm run dev')).toBe('debug');
+    expect(classifyBashCategory('nodemon server.js')).toBe('debug');
+  });
+
+  it('classifies explore commands', () => {
+    expect(classifyBashCategory('ls -la')).toBe('explore');
+    expect(classifyBashCategory('find . -name "*.ts"')).toBe('explore');
+    expect(classifyBashCategory('tree src/')).toBe('explore');
+  });
+
+  it('classifies run commands', () => {
+    expect(classifyBashCategory('node server.js')).toBe('run');
+    expect(classifyBashCategory('python train.py')).toBe('run');
+    expect(classifyBashCategory('go run main.go')).toBe('run');
+  });
+
+  it('classifies unknown as other', () => {
+    expect(classifyBashCategory('my-custom-script --flag')).toBe('other');
+    expect(classifyBashCategory('echo hello')).toBe('other');
   });
 });
 

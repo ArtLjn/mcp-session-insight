@@ -1,6 +1,9 @@
 import { readFileSync } from 'fs';
 import { createHash } from 'crypto';
-import type { WorkSummary } from './models.js';
+import { dirname, basename } from 'path';
+import { BashCategory } from './models.js';
+import type { WorkSummary, EnrichedSummary, ProcessingContext, FileChangeGroup } from './models.js';
+import { jaccardTrigram } from './utils.js';
 
 const GIT_COMMANDS = [
   'git commit',
@@ -96,7 +99,50 @@ export function isErrorOrIssue(text: string): boolean {
   return false;
 }
 
-/** Classify bash command into git action or regular command */
+/** Classification rules: [pattern, category] — checked in order, first match wins */
+const BASH_RULES: Array<[RegExp, BashCategory]> = [
+  [/^\s*git\s/, BashCategory.GIT],
+  [/^\s*npm\s+test/, BashCategory.TEST],
+  [/^\s*vitest/, BashCategory.TEST],
+  [/^\s*jest/, BashCategory.TEST],
+  [/^\s*pytest/, BashCategory.TEST],
+  [/^\s*go\s+test/, BashCategory.TEST],
+  [/^\s*cargo\s+test/, BashCategory.TEST],
+  [/^\s*npm\s+run\s+build/, BashCategory.BUILD],
+  [/^\s*tsc/, BashCategory.BUILD],
+  [/^\s*webpack/, BashCategory.BUILD],
+  [/^\s*rollup/, BashCategory.BUILD],
+  [/^\s*esbuild/, BashCategory.BUILD],
+  [/^\s*npm\s+run\s+dev/, BashCategory.DEBUG],
+  [/^\s*nodemon/, BashCategory.DEBUG],
+  [/^\s*docker\s/, BashCategory.DEPLOY],
+  [/^\s*kubectl\s/, BashCategory.DEPLOY],
+  [/^\s*helm\s/, BashCategory.DEPLOY],
+  [/^\s*curl\s/, BashCategory.NETWORK],
+  [/^\s*wget\s/, BashCategory.NETWORK],
+  [/^\s*ping\s/, BashCategory.NETWORK],
+  [/^\s*ssh\s/, BashCategory.NETWORK],
+  [/^\s*scp\s/, BashCategory.NETWORK],
+  [/^\s*ls\s/, BashCategory.EXPLORE],
+  [/^\s*find\s/, BashCategory.EXPLORE],
+  [/^\s*tree\s/, BashCategory.EXPLORE],
+  [/^\s*node\s/, BashCategory.RUN],
+  [/^\s*python\s/, BashCategory.RUN],
+  [/^\s*python3\s/, BashCategory.RUN],
+  [/^\s*go\s+run/, BashCategory.RUN],
+  [/^\s*cargo\s+run/, BashCategory.RUN],
+];
+
+/** Classify a bash command by semantic category */
+export function classifyBashCategory(cmd: string): BashCategory {
+  const trimmed = cmd.trim();
+  for (const [pattern, category] of BASH_RULES) {
+    if (pattern.test(trimmed)) return category;
+  }
+  return BashCategory.OTHER;
+}
+
+/** Classify bash command into git action or regular command (legacy, for WorkSummary) */
 export function classifyBashCommand(cmd: string, result: WorkSummary): void {
   const trimmed = cmd.trim();
   const lower = trimmed.toLowerCase();
