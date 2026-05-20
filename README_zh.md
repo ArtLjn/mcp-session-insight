@@ -1,6 +1,21 @@
 <img src="banner.png" width="100%" alt="mcp-session-insight" />
 
+<div align="center">
+
+# MCP Session Insight
+
+**AI-Native Session Observability for Claude Code**
+
 **简体中文** | [English](README.md)
+
+![npm](https://img.shields.io/npm/v/@morningljn/mcp-session-insight?color=blue&label=npm)
+![license](https://img.shields.io/badge/license-MIT-blue)
+![node](https://img.shields.io/badge/node-%3E%3D18-green)
+![MCP](https://img.shields.io/badge/MCP-Protocol-purple)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)
+![Vitest](https://img.shields.io/badge/Vitest-Test-green)
+
+</div>
 
 ---
 
@@ -18,7 +33,7 @@ session-insight 为你的 AI 助手提供**对历史会话的只读洞察能力*
 
 ## 快速开始
 
-```
+```bash
 # 安装
 npm install -g @morningljn/mcp-session-insight
 
@@ -119,7 +134,7 @@ claude mcp add session-insight -- npx @morningljn/mcp-session-insight
 
 ## 开发
 
-```
+```bash
 npm install
 npm test        # vitest 运行测试
 npm run build   # 编译 TypeScript

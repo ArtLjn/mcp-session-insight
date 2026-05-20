@@ -1,6 +1,21 @@
 <img src="banner.png" width="100%" alt="mcp-session-insight" />
 
-简体中文 | **English**
+<div align="center">
+
+# MCP Session Insight
+
+**AI-Native Session Observability for Claude Code**
+
+[简体中文](README_zh.md) | **English**
+
+![npm](https://img.shields.io/npm/v/@morningljn/mcp-session-insight?color=blue&label=npm)
+![license](https://img.shields.io/badge/license-MIT-blue)
+![node](https://img.shields.io/badge/node-%3E%3D18-green)
+![MCP](https://img.shields.io/badge/MCP-Protocol-purple)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)
+![Vitest](https://img.shields.io/badge/Vitest-Test-green)
+
+</div>
 
 ---
 
@@ -18,7 +33,7 @@ session-insight gives your AI assistant a **read-only lens into all past session
 
 ## Quick Start
 
-```
+```bash
 # Install
 npm install -g @morningljn/mcp-session-insight
 
@@ -119,7 +134,7 @@ Collect git commit history across all Claude Code projects:
 
 ## Development
 
-```
+```bash
 npm install
 npm test        # run tests with vitest
 npm run build   # compile TypeScript
