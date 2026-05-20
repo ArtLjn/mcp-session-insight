@@ -4,6 +4,7 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import {
   extractWorkSummary,
+  extractEnrichedSummary,
   classifyBashCategory,
   isNoise,
   isErrorOrIssue,
@@ -380,6 +381,83 @@ describe('extractDecisions', () => {
     const r = makeEmptyResult();
     extractDecisions('hello world\nnothing here', r);
     expect(r.decisions).toHaveLength(0);
+  });
+});
+
+describe('extractEnrichedSummary', () => {
+  it('classifies bash commands by category', () => {
+    const fp = join(__dirname, 'fixtures', 'enriched-sample.jsonl');
+    const result = extractEnrichedSummary(fp);
+    const categories = result.classifiedBash.map(b => b.category);
+    expect(categories).toContain('test');
+    expect(categories).toContain('build');
+    expect(categories).toContain('git');
+  });
+
+  it('binds error context to triggering tool (cross-message, Spike B)', () => {
+    const fp = join(__dirname, 'fixtures', 'enriched-sample.jsonl');
+    const result = extractEnrichedSummary(fp);
+    expect(result.errorsWithContext.length).toBeGreaterThan(0);
+    // In the fixture, the pattern is:
+    //   assistant -> tool_use(Bash, npm test)
+    //   user -> tool_result (contains error text from command output)
+    //   assistant -> text("Test failed with SyntaxError...")
+    //   assistant -> text("Error: there is a syntax error...")
+    // The sliding window should bind the error text to the most recent tool_use (Bash, npm test)
+    const err = result.errorsWithContext[0];
+    expect(err.message).toContain('SyntaxError');
+    expect(err.trigger).toBe('Bash');
+    expect(err.command).toContain('npm test');
+  });
+
+  it('groups file changes by directory', () => {
+    const fp = join(__dirname, 'fixtures', 'enriched-sample.jsonl');
+    const result = extractEnrichedSummary(fp);
+    const srcGroup = result.fileChangeGroups.find(g => g.directory === 'Users/ljn/proj/src');
+    expect(srcGroup).toBeDefined();
+    expect(srcGroup!.created).toContain('login.ts');
+    expect(srcGroup!.modified.length).toBeGreaterThan(0);
+  });
+
+  it('deduplicates user requests via trigram', () => {
+    const fp = join(__dirname, 'fixtures', 'enriched-sample.jsonl');
+    const result = extractEnrichedSummary(fp);
+    // "帮我加个登录按钮" and "帮我加个登录的按钮" should dedup to 1
+    expect(result.dedupedRequests).toHaveLength(1);
+  });
+
+  it('extracts decisions from thinking', () => {
+    const fp = join(__dirname, 'fixtures', 'enriched-sample.jsonl');
+    const result = extractEnrichedSummary(fp);
+    expect(result.decisions.length).toBeGreaterThan(0);
+    expect(result.decisions[0]).toContain('决定');
+  });
+
+  it('captures git actions', () => {
+    const fp = join(__dirname, 'fixtures', 'enriched-sample.jsonl');
+    const result = extractEnrichedSummary(fp);
+    expect(result.gitActions).toContain('git commit -m "feat: add login button"');
+    expect(result.gitActions).toContain('git push origin main');
+  });
+
+  it('captures todo final state', () => {
+    const fp = join(__dirname, 'fixtures', 'enriched-sample.jsonl');
+    const result = extractEnrichedSummary(fp);
+    expect(result.todoFinalState).toContain('[completed] Add login button');
+    expect(result.todoFinalState).toContain('[pending] Add logout handler');
+  });
+
+  it('computes session duration', () => {
+    const fp = join(__dirname, 'fixtures', 'enriched-sample.jsonl');
+    const result = extractEnrichedSummary(fp);
+    // 10:00 to 10:10 = 10min
+    expect(result.sessionDuration).toBe('10min');
+  });
+
+  it('returns empty for nonexistent file', () => {
+    const result = extractEnrichedSummary('/tmp/nonexistent-xyz.jsonl');
+    expect(result.classifiedBash).toEqual([]);
+    expect(result.dedupedRequests).toEqual([]);
   });
 });
 
