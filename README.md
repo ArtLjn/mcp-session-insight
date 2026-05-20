@@ -1,30 +1,36 @@
-<img src="banner.png" width="100%" alt="mcp-session-insight banner" />
+<img src="banner.png" width="100%" alt="mcp-session-insight" />
 
 简体中文 | **English**
 
-MCP Server for Claude Code Session Insight — read, analyze, and handoff sessions.
+---
 
-## Installation
+## Why session-insight?
 
-```bash
+Claude Code sessions accumulate rich context — file changes, user requests, decisions, errors, git history — but that context vanishes when the session ends. `CLAUDE.md` stores static rules, but can't answer "what did I work on today?" or "what went wrong in that last session?".
+
+session-insight gives your AI assistant a **read-only lens into all past sessions**:
+
+- **Session analytics** — extract structured insights from JSONL: file changes, decisions, errors, tool usage, todo progress
+- **EnrichedSummary** — returns structured JSON instead of Markdown templates, letting the calling LLM synthesize concise summaries at zero extra API cost
+- **Cross-project git logs** — collect commit history across all projects with date range, project, and author filters
+- **Semantic classification** — bash commands classified into 9 categories (build/test/deploy/debug/network/run/git/explore/other)
+- **Session handoff** — generate structured context for seamless session continuation
+
+## Quick Start
+
+```
+# Install
 npm install -g @morningljn/mcp-session-insight
-```
 
-Or use via npx (no install):
-
-```bash
-npx @morningljn/mcp-session-insight
-```
-
-## Configuration
-
-Add to your Claude Code MCP settings:
-
-```bash
+# One-command setup
 claude mcp add session-insight -- npx @morningljn/mcp-session-insight
 ```
 
-Or manually add to `~/.claude/mcp.json`:
+Restart your AI assistant and it can now query all past sessions.
+
+### Manual Setup
+
+Add to `~/.claude/mcp.json`:
 
 ```json
 {
@@ -42,50 +48,83 @@ Or manually add to `~/.claude/mcp.json`:
 | Tool | Description |
 |------|-------------|
 | `list_sessions` | List all sessions with optional project filter and limit |
-| `show_session` | Show session details (supports prefix matching) |
+| `show_session` | Show session metadata (supports prefix matching on session ID) |
 | `search_sessions` | Search sessions by keyword in content or ID |
-| `get_session_summary` | Returns structured EnrichedSummary JSON for LLM synthesis |
+| `get_session_summary` | Returns EnrichedSummary JSON for LLM synthesis |
 | `get_session_changes` | Get file changes (created / modified / read) |
 | `get_session_requests` | Get deduplicated user requests |
 | `get_session_todos` | Get todo progress snapshots |
-| `get_session_errors` | Get errors and issues encountered |
+| `get_session_errors` | Get errors and issues with context |
 | `get_session_decisions` | Get key decisions from thinking blocks |
 | `get_session_conversation` | Get conversation history with role filter |
-| `get_git_logs` | Collect git commit logs across projects (date range, project, author filters) |
+| `get_git_logs` | Collect git commit logs across projects |
 
-## Resources
+### `get_session_summary` (EnrichedSummary)
 
-- `session-insight://sessions` — JSON list of all sessions
-- `session-insight://session/{id}/work-summary` — JSON work summary
+Returns structured JSON instead of formatted text. The calling LLM reads the data and synthesizes a concise summary — zero extra API cost.
 
-## Prompts
+```json
+{
+  "sessionDuration": "116min",
+  "messageDensity": "low",
+  "classifiedBash": [{ "cmd": "npm test", "category": "test" }],
+  "errorsWithContext": [{ "message": "...", "trigger": "Bash", "relatedFile": "src/server.ts" }],
+  "fileChangeGroups": [{ "directory": "src", "created": ["git.ts"], "modified": [] }],
+  "dedupedRequests": ["refactor summary to structured JSON"],
+  "decisions": ["use Jaccard trigram for dedup"],
+  "toolStats": { "Bash": 93, "Read": 39, "Edit": 38 },
+  "gitActions": ["git commit -m \"feat: ...\"", "git push origin main"]
+}
+```
 
-- `session_handoff` — Generate handoff context for seamless session continuation
+### `get_git_logs`
 
-## How It Works
+Collect git commit history across all Claude Code projects:
 
-This MCP Server reads Claude Code's session JSONL files from `~/.claude/projects/`, extracts structured insights (file changes, user requests, decisions, errors, todos), and exposes them via the Model Context Protocol.
+```json
+[
+  {
+    "project": "/Users/user/project",
+    "projectName": "my-app",
+    "commits": [
+      { "hash": "a1b2c3d", "message": "feat: add auth", "author": "user", "date": "2026-05-20T10:00:00+08:00", "files": ["src/auth.ts"] }
+    ]
+  }
+]
+```
 
-### EnrichedSummary (v0.3.0+)
+## Architecture
 
-Instead of returning a pre-formatted Markdown template, `get_session_summary` returns structured JSON data with semantic classification, contextualized errors, and directory-grouped file changes. The calling LLM synthesizes a concise summary from this data — zero extra API cost.
+```
+┌───────────────────┐   stdio    ┌──────────────────┐   read     ┌──────────────────────────┐
+│   MCP Client      │◄─────────►│ session-insight  │◄──────────►│ ~/.claude/projects/      │
+│ (Claude / Codex)  │   JSON    │     server       │            │                          │
+└───────────────────┘           └───────┬──────────┘            │  ┌─project-a/            │
+                                        │                       │  │  ├─session-1.jsonl     │
+                                 ┌──────┴──────┐                │  │  └─session-2.jsonl     │
+                                 │             │                │  └─project-b/            │
+                                 │  Extractor  │   Git Log      │     └─session-3.jsonl     │
+                                 │  (summary,  │   Collector    │                          │
+                                 │   classify, │   (git log     └──────────────────────────┘
+                                 │   dedup,    │    per project)
+                                 │   errors)   │
+                                 └─────────────┘
+```
 
-**Key features:**
-- Cross-project git log collection with date range, project, and author filters
-- Bash command semantic classification (build/test/deploy/debug/network/run/git/explore)
-- Error context binding via sliding window (associates errors with triggering tools)
-- Jaccard trigram deduplication for user requests (93% accuracy at 0.4 threshold)
-- File changes grouped by directory
-- Session duration and message density metrics
+**Key design decisions:**
 
-### Stateless Design
+- **Stateless** — no database, no persistence, reads JSONL directly on each request
+- **Zero dependencies** — only `@modelcontextprotocol/sdk`, all processing is pure computation
+- **LLM-friendly output** — structured JSON that the calling LLM synthesizes into natural language
 
-No database, no persistence. Reads JSONL directly on each request.
+## Development
 
-## Requirements
-
-- Node.js >= 18
-- Claude Code sessions in `~/.claude/projects/` (default location)
+```
+npm install
+npm test        # run tests with vitest
+npm run build   # compile TypeScript
+npm start       # start MCP server
+```
 
 ## License
 
