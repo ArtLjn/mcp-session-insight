@@ -6,6 +6,9 @@ import {
   parseTimestamp,
   shortPath,
   truncate,
+  trigrams,
+  jaccardTrigram,
+  dedupByTrigram,
 } from '../src/utils.js';
 
 describe('decodeProjectPath', () => {
@@ -74,5 +77,64 @@ describe('truncate', () => {
 
   it('strips HTML tags', () => {
     expect(truncate('<tag>hello</tag>', 20)).toBe('hello');
+  });
+});
+
+describe('trigrams', () => {
+  it('extracts trigrams from a string', () => {
+    const result = trigrams('abc');
+    expect(result).toEqual(['abc']);
+  });
+
+  it('extracts multiple trigrams', () => {
+    const result = trigrams('abcd');
+    expect(result).toEqual(['abc', 'bcd']);
+  });
+
+  it('returns empty for short strings', () => {
+    expect(trigrams('ab')).toEqual([]);
+    expect(trigrams('')).toEqual([]);
+  });
+});
+
+describe('jaccardTrigram', () => {
+  it('returns 1 for identical strings', () => {
+    expect(jaccardTrigram('hello world', 'hello world')).toBe(1);
+  });
+
+  it('returns 0 for completely different strings', () => {
+    expect(jaccardTrigram('aaa', 'zzz')).toBe(0);
+  });
+
+  it('returns between 0 and 1 for partially similar', () => {
+    const s = jaccardTrigram('hello world', 'hello there');
+    expect(s).toBeGreaterThan(0);
+    expect(s).toBeLessThan(1);
+  });
+
+  it('is case-insensitive', () => {
+    expect(jaccardTrigram('Hello', 'hello')).toBe(1);
+  });
+});
+
+describe('dedupByTrigram', () => {
+  it('removes near-duplicate items (threshold=0.4, validated by spike)', () => {
+    const items = ['帮我加个登录按钮', '帮我加个登录的按钮'];
+    const result = dedupByTrigram(items, 0.4);
+    expect(result).toHaveLength(1);
+  });
+
+  it('keeps semantically different items (threshold=0.4)', () => {
+    const items = ['帮我加个按钮', '帮我加个搜索框'];
+    const result = dedupByTrigram(items, 0.4);
+    expect(result).toHaveLength(2);
+  });
+
+  it('handles empty array', () => {
+    expect(dedupByTrigram([], 0.4)).toEqual([]);
+  });
+
+  it('handles single item', () => {
+    expect(dedupByTrigram(['only one'], 0.4)).toEqual(['only one']);
   });
 });

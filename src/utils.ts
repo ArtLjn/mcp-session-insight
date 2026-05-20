@@ -65,3 +65,36 @@ export function truncate(text: string, maxLen: number = 50, suffix: string = '..
   if (text.length <= maxLen) return text;
   return text.slice(0, maxLen - suffix.length) + suffix;
 }
+
+/** Extract character trigrams from a string */
+export function trigrams(s: string): string[] {
+  if (s.length < 3) return [];
+  const result: string[] = [];
+  for (let i = 0; i <= s.length - 3; i++) {
+    result.push(s.slice(i, i + 3));
+  }
+  return result;
+}
+
+/** Compute Jaccard similarity between two strings using trigrams */
+export function jaccardTrigram(a: string, b: string): number {
+  const tA = trigrams(a.toLowerCase().trim());
+  const tB = trigrams(b.toLowerCase().trim());
+  if (tA.length === 0 && tB.length === 0) return 0;
+  const setB = new Set(tB);
+  const intersection = tA.filter(t => setB.has(t)).length;
+  const union = new Set([...tA, ...tB]).size;
+  return union === 0 ? 0 : intersection / union;
+}
+
+/** Deduplicate strings by Jaccard trigram similarity (keep first occurrence) */
+export function dedupByTrigram(items: string[], threshold = 0.4): string[] {
+  const result: string[] = [];
+  for (const item of items) {
+    const cleaned = item.trim();
+    if (!cleaned) continue;
+    const isDup = result.some(r => jaccardTrigram(r, cleaned) >= threshold);
+    if (!isDup) result.push(cleaned);
+  }
+  return result;
+}
